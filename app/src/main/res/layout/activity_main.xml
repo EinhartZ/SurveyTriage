@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.qaelum.einhart.qaelumsurvey.MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight=".3"
+            android:text="This is a survey"
+            android:textAppearance="@android:style/TextAppearance.Medium"
+            android:textAlignment="center"
+            android:textStyle="normal|bold"
+            android:textSize="36sp"
+            android:typeface="monospace"
+            android:fontFamily="monospace" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:orientation="horizontal"
+            android:layout_weight=".4">
+
+            <ImageView
+                android:id="@+id/face_positive"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight=".3"
+                android:src="@drawable/face_positive"/>
+
+            <ImageView
+                android:id="@+id/face_neutral"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight=".3"
+                android:src="@drawable/face_neutral"/>
+
+            <ImageView
+                android:id="@+id/face_negative"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight=".3"
+                android:src="@drawable/face_negative"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight=".1"
+            android:orientation="horizontal"
+            android:visibility="invisible">
+
+            <Button
+                android:id="@+id/answer_positive"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight=".2"
+                android:text="Positive"/>
+
+            <Button
+                android:id="@+id/answer_neutral"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight=".2"
+                android:text="Neutral"/>
+
+            <Button
+                android:id="@+id/answer_negative"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight=".2"
+                android:text="Negative"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight=".1">
+
+            <TextView
+                android:id="@+id/text_test"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+    <com.qaelum.einhart.qaelumsurvey.TouchBlackHoleView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/black_hole"
+        android:orientation="horizontal">
+    </com.qaelum.einhart.qaelumsurvey.TouchBlackHoleView>
+</RelativeLayout>
