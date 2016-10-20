@@ -4,13 +4,15 @@ import android.animation.Animator;
 import android.animation.Animator.AnimatorListener;
 import android.animation.AnimatorInflater;
 import android.animation.ObjectAnimator;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.RotateAnimation;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -20,37 +22,54 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-import java.util.Map;
+public class MainActivity extends AppCompatActivity implements View.OnTouchListener{
 
-public class MainActivity extends AppCompatActivity {
-
+    private SharedPreferences prefs;
     private Toast toast;
+    private TextView questionTxt;
+    private ImageView logo;
 
     private ImageView img_positive;
     private ImageView img_neutral;
     private ImageView img_negative;
 
+    private Animator animFlip_x;
     private Animator animFlip_y;
     private Animator animRotate;
     private AnimatorListener blackHoleListener;
     private TouchBlackHoleView black_hole;
 
+    private String submitUrl;
+    private String location;
+    private String questionId;
+    private String questionnaireId;
+
+    final Handler handler = new Handler();
+    Runnable mLongPressed;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         hideStatusBar();
-
+        prefs = PreferenceManager.getDefaultSharedPreferences(this);
         toast = Toast.makeText(this, "", Toast.LENGTH_SHORT);
 
-        img_positive = (ImageView)findViewById(R.id.face_positive);
-        img_neutral = (ImageView)findViewById(R.id.face_neutral);
-        img_negative = (ImageView)findViewById(R.id.face_negative);
+        questionTxt = (TextView)findViewById(R.id.question_text);
+        //questionTxt.setOnTouchListener(this);
+        logo = (ImageView)findViewById(R.id.img_logo);
+        logo.setOnTouchListener(this);
 
+        img_positive = (ImageView)findViewById(R.id.img_positive);
+        img_neutral = (ImageView)findViewById(R.id.img_neutral);
+        img_negative = (ImageView)findViewById(R.id.img_negative);
+
+        animFlip_x = AnimatorInflater.loadAnimator(getApplicationContext(), R.animator.flip_x);
         animFlip_y = AnimatorInflater.loadAnimator(getApplicationContext(), R.animator.flip_y);
         animRotate = ObjectAnimator.ofFloat(null, "rotation", 0f, 360f);
         animRotate.setDuration(getResources().getInteger(R.integer.anim_length));
@@ -83,9 +102,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Log.i("Click" ,"Clicked on img_positive");
 
-                doPost("app_positive");
-                rotateImage(img_positive);
-                toast.setText(":)");
+                doPost(getString(R.string.jsonValue_positive));
+                flipImageX(img_positive);
+                toast.setText(R.string.feedback_pos);
                 toast.show();
             }
         });
@@ -95,8 +114,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Log.i("Click" ,"Clicked on neutral");
 
-                doPost("app_neutral");
-                toast.setText(":|");
+                doPost(getString(R.string.jsonValue_neutral));
+                rotateImage(img_neutral);
+                toast.setText(R.string.feedback_nul);
                 toast.show();
             }
         });
@@ -106,25 +126,36 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Log.i("Click" ,"Clicked on img_negative");
 
-                doPost("app_negative");
-                flipImage(img_negative);
-                toast.setText(":(");
+                doPost(getString(R.string.jsonValue_negative));
+                flipImageY(img_negative);
+                toast.setText(R.string.feedback_neg);
                 toast.show();
             }
         });
 
+        setParameters();
+        mLongPressed = new Runnable() {
+            public void run() {
+                openSettings(null);
+            }
+        };
     }
 
-    private void rotateImage(ImageView imageView) {
-        animRotate.setTarget(imageView);
-        animRotate.addListener(blackHoleListener);
-        animRotate.start();
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        setParameters();
+
+        hideStatusBar();
     }
 
-    private void flipImage(ImageView imageView) {
-        animFlip_y.setTarget(imageView);
-        animFlip_y.addListener(blackHoleListener);
-        animFlip_y.start();
+    private void setParameters() {
+        questionTxt.setText(prefs.getString("pref_questionTxt", getString(R.string.default_questionTxt)));
+        submitUrl = prefs.getString("pref_submitURL", getString(R.string.default_submitURL));
+        location = prefs.getString("pref_location", getString(R.string.default_location));
+        questionId = prefs.getString("pref_questionID", getString(R.string.default_questionID));
+        questionnaireId = prefs.getString("pref_questionnaireID", getString(R.string.default_questionnaireID));
     }
 
     private void hideStatusBar() {
@@ -136,34 +167,60 @@ public class MainActivity extends AppCompatActivity {
         //actionBar.hide();
     }
 
+    public void openSettings(View view) {
+        Intent intent = new Intent(this, SettingsActivity.class);
+        startActivity(intent);
+    }
+
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        if(event.getAction() == MotionEvent.ACTION_DOWN)
+            handler.postDelayed(mLongPressed, getResources().getInteger(R.integer.longPress_length));
+        if(event.getAction() == MotionEvent.ACTION_UP)
+            handler.removeCallbacks(mLongPressed);
+        return true;
+    }
+
+
+    /*
+    * REST calls
+    * */
     private void doPost(String answer) {
-        String url = "http://192.168.1.23:10525/PATIENT_SURVEY/submit";
         final TextView mTextDisplay = (TextView) findViewById(R.id.text_test);
 
-        Map<String, String> answers = new HashMap<>();
-        answers.put("41", answer);
+        JSONObject answers = new JSONObject();
+        JSONObject params = new JSONObject();
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("questionnaireId", "24");
-        params.put("answers", answers);
+        try {
+//            answers.put(getString(R.string.config_questionID), answer);
+//            params.put("questionnaireId", getString(R.string.config_questionnaireID));
+            answers.put(questionId, answer);
+            params.put("questionnaireId", questionnaireId);
+            params.put("answers", answers);
+            params.put("location", location);
+            params.put("cmt", questionTxt.getText());
 
-        JSONObject parameters = new JSONObject(params);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
 
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, url, parameters, new Response.Listener<JSONObject>() {
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, submitUrl, params, new Response.Listener<JSONObject>() {
             @Override
             public void onResponse(JSONObject response) {
-                mTextDisplay.setText("Response: " + response.toString());
+                mTextDisplay.setText("");
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                mTextDisplay.setText("Error: " + error.toString());
+                mTextDisplay.setText(String.format("Network error: %s%nCouldn't submit your answer at the moment", error.toString()));
+                Log.e("Error", error.toString(), error);
             }
         });
 
+        Log.i("Post",  submitUrl + " <= " + params.toString());
         MySingleton.getInstance(this).addToRequestQueue(jsonObjectRequest);
     }
-
+    //TODO-ein testing
     private void doGet() {
         String url = "http://192.168.1.67:10525/PATIENT_SURVEY/triage_stat";
         final TextView mTextDisplay = (TextView) findViewById(R.id.text_test);
@@ -182,4 +239,26 @@ public class MainActivity extends AppCompatActivity {
 
         MySingleton.getInstance(this).addToRequestQueue(jsonObjectRequuest);
     }
+
+    /*
+    * Animations
+    * */
+    private void rotateImage(ImageView imageView) {
+        animRotate.setTarget(imageView);
+        animRotate.addListener(blackHoleListener);
+        animRotate.start();
+    }
+
+    private void flipImageX(ImageView imageView) {
+        animFlip_x.setTarget(imageView);
+        animFlip_x.addListener(blackHoleListener);
+        animFlip_x.start();
+    }
+
+    private void flipImageY(ImageView imageView) {
+        animFlip_y.setTarget(imageView);
+        animFlip_y.addListener(blackHoleListener);
+        animFlip_y.start();
+    }
+
 }
